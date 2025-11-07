@@ -1,0 +1,34 @@
+{
+  "name": "create-addi-app",
+  "version": "0.0.2",
+  "description": "Scaffolds an `addi-stack` app.",
+  "main": "index.js",
+  "type": "module",
+  "bin": {
+    "create-addi-stack": "index.js"
+  },
+  "scripts": {},
+  "keywords": [
+    "sveltekit",
+    "cli",
+    "generator",
+    "cloudflare",
+    "tailwindcss",
+    "shadcn",
+    "svelte"
+  ],
+  "author": "Addison LeClair <me@addi.lol>",
+  "repository": "https://github.com/addidotlol/create-addi-app",
+  "license": "MIT",
+  "packageManager": "pnpm@10.19.0",
+  "dependencies": {
+    "@clack/prompts": "^0.11.0",
+    "dax-sh": "^0.43.2",
+    "ejs": "^3.1.10",
+    "fs-extra": "^11.3.2",
+    "glob": "^11.0.3",
+    "jsonc-parser": "^3.3.1",
+    "prettier-plugin-svelte": "^3.4.0",
+    "prettier-plugin-tailwindcss": "^0.7.1"
+  }
+}

@@ -1,0 +1,29 @@
+<% if (auth) { %>import auth from '$lib/server/auth'; // path to your auth file
+import { svelteKitHandler } from 'better-auth/svelte-kit';
+import { building } from '$app/environment';
+<% } %><% if (database) { %>import { getDrizzle } from '$lib/server/db';
+<% } %>
+
+export async function handle({ event, resolve }) {
+<% if (database) { %>	if (!event.platform?.env.D1) {
+		throw new Error(
+			'Missing D1 environment variable. If running in development, use the `dev` script.'
+		);
+	}
+
+	event.locals.database = getDrizzle(event.platform?.env.D1);
+<% } %><% if (auth) { %>	event.locals.auth = auth(event.locals.database);
+
+	const session = await event.locals.auth.api.getSession({
+		headers: event.request.headers
+	});
+
+	if (session) {
+		event.locals.auth.session = session.session;
+		event.locals.auth.user = session.user;
+	}
+
+	return svelteKitHandler({ event, resolve, auth: event.locals.auth, building });
+<% } else { %>	return resolve(event);
+<% } %>
+}
