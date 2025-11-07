@@ -18,7 +18,10 @@
     "svelte"
   ],
   "author": "Addison LeClair <me@addi.lol>",
-  "repository": "https://github.com/addidotlol/create-addi-app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/addidotlol/create-addi-app.git"
+  },
   "license": "MIT",
   "packageManager": "pnpm@10.19.0",
   "dependencies": {
