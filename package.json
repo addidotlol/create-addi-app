@@ -7,7 +7,14 @@
   "bin": {
     "create-addi-stack": "index.js"
   },
-  "scripts": {},
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "echo 'No TypeScript files to check'",
+    "test": "node index.js test-app --database --auth --useful",
+    "dev": "node index.js"
+  },
   "keywords": [
     "sveltekit",
     "cli",
@@ -33,5 +40,12 @@
     "jsonc-parser": "^3.3.1",
     "prettier-plugin-svelte": "^3.4.0",
     "prettier-plugin-tailwindcss": "^0.7.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "eslint-plugin-node": "^11.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
