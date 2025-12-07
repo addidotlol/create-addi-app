@@ -1,6 +1,6 @@
 {
   "name": "create-addi-app",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Scaffolds an `addi-stack` app.",
   "main": "index.js",
   "type": "module",
