@@ -13,6 +13,16 @@ import * as jsonc from "jsonc-parser";
 const args = process.argv.slice(2);
 const debugFlag = args.includes("--debug");
 const helpFlag = args.includes("--help") || args.includes("-h");
+const databaseFlag = args.includes("--database");
+const noDatabaseFlag = args.includes("--no-database");
+const authFlag = args.includes("--auth");
+const noAuthFlag = args.includes("--no-auth");
+const usefulFlag = args.includes("--useful");
+const noUsefulFlag = args.includes("--no-useful");
+
+// Extract app name from positional arguments (first non-flag argument)
+const positionalArgs = args.filter((arg) => !arg.startsWith("--"));
+const appNameFromArgs = positionalArgs[0];
 
 // Show help and exit if requested
 if (helpFlag) {
@@ -20,15 +30,24 @@ if (helpFlag) {
 create-addi-stack - Scaffolds an addi-stack app
 
 Usage:
-  create-addi-stack [options]
+  create-addi-stack [app-name] [options]
+
+Arguments:
+  app-name     Name of the app to create (optional, will prompt if not provided)
 
 Options:
-  --debug    Show verbose output from all commands
-  --help, -h Show this help message
+  --database, --no-database    Include/Exclude Database (Drizzle ORM)
+  --auth, --no-auth            Include/Exclude Authentication (Better Auth)
+  --useful, --no-useful       Include/Exclude Useful Packages (runed/neverthrow)
+  --debug                      Show verbose output from all commands
+  --help, -h                  Show this help message
 
 Examples:
-  create-addi-stack              # Create app with default settings
-  create-addi-stack --debug      # Create app with verbose output
+  create-addi-stack                        # Interactive mode with defaults
+  create-addi-stack my-app                 # Create app named 'my-app'
+  create-addi-stack my-app --database       # Create app with database enabled
+  create-addi-stack --no-database --no-auth  # Create without database and auth
+  create-addi-stack --debug                # Show verbose output
 `);
   process.exit(0);
 }
@@ -130,32 +149,66 @@ const pmCommands = getPackageManagerCommands(packageManager);
 
 intro(`create-addi-stack ${debugFlag ? " (debug mode enabled)" : ""}`);
 
-const appName = await text({
-  message: "What is the name of your app?",
-  placeholder: "my-app",
-  validate: (value) => {
-    if (!value) return "App name is required";
-    if (fs.existsSync(path.join(process.cwd(), value)))
-      return "Directory already exists";
-  },
-});
+// Determine app name - from CLI arg or prompt
+let appName;
+if (appNameFromArgs) {
+  appName = appNameFromArgs;
+  if (fs.existsSync(path.join(process.cwd(), appName))) {
+    console.error(`Error: Directory '${appName}' already exists`);
+    process.exit(1);
+  }
+} else {
+  appName = await text({
+    message: "What is the name of your app?",
+    placeholder: "my-app",
+    validate: (value) => {
+      if (!value) return "App name is required";
+      if (fs.existsSync(path.join(process.cwd(), value)))
+        return "Directory already exists";
+    },
+  });
+}
 
-const database = await confirm({
-  message: "Include Database (Drizzle ORM)?",
-  initialValue: true,
-});
+// Determine database inclusion - from CLI flags or prompt
+let database;
+if (databaseFlag) {
+  database = true;
+} else if (noDatabaseFlag) {
+  database = false;
+} else {
+  database = await confirm({
+    message: "Include Database (Drizzle ORM)?",
+    initialValue: true,
+  });
+}
 
-const auth = database
-  ? await confirm({
-      message: "Include Authentication (Better Auth)?",
-      initialValue: true,
-    })
-  : false;
+// Determine auth inclusion - from CLI flags or prompt
+let auth;
+if (authFlag) {
+  auth = true;
+} else if (noAuthFlag) {
+  auth = false;
+} else if (database) {
+  auth = await confirm({
+    message: "Include Authentication (Better Auth)?",
+    initialValue: true,
+  });
+} else {
+  auth = false;
+}
 
-const useful = await confirm({
-  message: "Include Useful Packages (runed/neverthrow)?",
-  initialValue: true,
-});
+// Determine useful packages inclusion - from CLI flags or prompt
+let useful;
+if (usefulFlag) {
+  useful = true;
+} else if (noUsefulFlag) {
+  useful = false;
+} else {
+  useful = await confirm({
+    message: "Include Useful Packages (runed/neverthrow)?",
+    initialValue: true,
+  });
+}
 
 const targetPath = path.join(process.cwd(), appName);
 
