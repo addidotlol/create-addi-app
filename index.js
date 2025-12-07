@@ -9,6 +9,60 @@ import { glob } from "glob";
 import { fileURLToPath } from "url";
 import * as jsonc from "jsonc-parser";
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+const debugFlag = args.includes("--debug");
+const helpFlag = args.includes("--help") || args.includes("-h");
+
+// Show help and exit if requested
+if (helpFlag) {
+  console.log(`
+create-addi-stack - Scaffolds an addi-stack app
+
+Usage:
+  create-addi-stack [options]
+
+Options:
+  --debug    Show verbose output from all commands
+  --help, -h Show this help message
+
+Examples:
+  create-addi-stack              # Create app with default settings
+  create-addi-stack --debug      # Create app with verbose output
+`);
+  process.exit(0);
+}
+
+// Helper function to conditionally apply quiet mode
+function maybeQuiet(command) {
+  return debugFlag ? command : command.quiet();
+}
+
+// Helper function to execute commands with proper Windows path handling
+async function execCommand(cmdString, options = {}) {
+  let command;
+
+  if (process.platform === "win32") {
+    // On Windows, use cmd.exe to properly handle paths with spaces
+    command = $.raw`cmd /c ${cmdString}`;
+  } else {
+    command = $.raw`sh -c ${cmdString}`;
+  }
+
+  // Apply options like cwd if provided
+  if (options.cwd) {
+    command = command.cwd(options.cwd);
+  }
+
+  // Apply stdin if provided
+  if (options.stdin) {
+    command = command.stdin(options.stdin);
+  }
+
+  // Apply quiet mode unless debug is enabled
+  return debugFlag ? command : command.quiet();
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatesPath = path.join(__dirname, "templates");
 
@@ -74,7 +128,7 @@ function getPackageManagerCommands(pm) {
 const packageManager = detectPackageManager();
 const pmCommands = getPackageManagerCommands(packageManager);
 
-intro("create-addi-stack");
+intro(`create-addi-stack ${debugFlag ? " (debug mode enabled)" : ""}`);
 
 const appName = await text({
   message: "What is the name of your app?",
@@ -108,19 +162,25 @@ const targetPath = path.join(process.cwd(), appName);
 let aspinner = spinner();
 aspinner.start("Initializing SvelteKit app....");
 const createCmd = `${pmCommands.dlx} create-cloudflare@latest`;
-await $.raw`${createCmd} --category web-framework --framework svelte --deploy false --git false ${targetPath} -- --template minimal --types ts --no-add-ons --no-install`
-  .stdin("y\n")
-  .quiet();
+await execCommand(
+  `${createCmd} --category web-framework --framework svelte --deploy false --git false ${targetPath} -- --template minimal --types ts --no-add-ons --no-install`,
+  { stdin: "y\n" },
+);
 
 aspinner.message("Adding dependencies...");
-await $.raw`${pmCommands.exec} sv add tailwindcss="plugins:typography" eslint prettier devtools-json --no-git-check --no-install`
-  .cwd(targetPath)
-  .stdin("y\n")
-  .quiet();
+await execCommand(
+  `${pmCommands.exec} sv add tailwindcss="plugins:typography" eslint prettier devtools-json --no-git-check --no-install`,
+  { cwd: targetPath, stdin: "y\n" },
+);
 
 aspinner.message("Cleaning up default app...");
-await $`rm -rf ${targetPath}/src/routes`.quiet();
-await $`rm -rf ${targetPath}/src/app.d.ts`.quiet();
+if (process.platform === "win32") {
+  await execCommand(`rmdir /s /q "${targetPath}\\src\\routes"`);
+  await execCommand(`del /q "${targetPath}\\src\\app.d.ts"`);
+} else {
+  await execCommand(`rm -rf ${targetPath}/src/routes`);
+  await execCommand(`rm -rf ${targetPath}/src/app.d.ts`);
+}
 // await $`rm -rf ${targetPath}/app.d.ts`;
 
 aspinner.message("Copying template files...");
@@ -155,28 +215,44 @@ for (const ejsFile of ejsFiles) {
 }
 
 aspinner.message("Initializing shadcn-svelte...");
-await $.raw`${pmCommands.exec} shadcn-svelte@latest init --no-deps --base-color neutral --css ./src/app.css --lib-alias="\\$lib" --components-alias="\\$lib/components" --utils-alias="\\$lib/utils" --hooks-alias="\\$lib/hooks" --ui-alias="\\$lib/components/ui"`
-  .cwd(targetPath)
-  .stdin("y\n")
-  .quiet();
+await execCommand(
+  `${pmCommands.exec} shadcn-svelte@latest init --no-deps --base-color neutral --css ./src/routes/layout.css --lib-alias="\\$lib" --components-alias="\\$lib/components" --utils-alias="\\$lib/utils" --hooks-alias="\\$lib/hooks" --ui-alias="\\$lib/components/ui"`,
+  { cwd: targetPath, stdin: "y\n" },
+);
 aspinner.message("Installing theme...");
-await $.raw`${pmCommands.exec} shadcn-svelte@latest add --no-deps --yes --overwrite https://tweakcn.com/r/themes/amethyst-haze.json`
-  .cwd(targetPath)
-  .stdin("y\n")
-  .quiet();
-
+await execCommand(
+  `${pmCommands.exec} shadcn-svelte@latest add --no-deps --yes --overwrite https://tweakcn.com/r/themes/amethyst-haze.json`,
+  { cwd: targetPath, stdin: "y\n" },
+);
 aspinner.message("Installing components...");
-await $.raw`${pmCommands.exec} shadcn-svelte@latest add --no-deps --yes button button-group card separator`
-  .cwd(targetPath)
-  .stdin("y\n")
-  .quiet();
+await execCommand(
+  `${pmCommands.exec} shadcn-svelte@latest add --no-deps --yes button button-group card separator`,
+  { cwd: targetPath, stdin: "y\n" },
+);
 
 aspinner.message("Installing dependencies...");
-await $.raw`${pmCommands.install}`.cwd(targetPath).stdin("y\n").quiet();
-await $.raw`${pmCommands.add} tw-animate-css tailwind-merge clsx tailwind-variants bits-ui @lucide/svelte ${database ? ["drizzle-orm", "drizzle-kit"] : ""} ${auth ? "better-auth" : ""}`
-  .cwd(targetPath)
-  .stdin("y\n")
-  .quiet();
+await execCommand(`${pmCommands.install}`, { cwd: targetPath, stdin: "y\n" });
+// Build package list properly
+const packages = [
+  "tw-animate-css",
+  "tailwind-merge",
+  "clsx",
+  "tailwind-variants",
+  "bits-ui",
+  "@lucide/svelte",
+];
+
+if (database) {
+  packages.push("drizzle-orm", "drizzle-kit");
+}
+if (auth) {
+  packages.push("better-auth");
+}
+
+await execCommand(`${pmCommands.add} ${packages.join(" ")}`, {
+  cwd: targetPath,
+  stdin: "y\n",
+});
 
 if (database) {
   aspinner.message("Creating bindings...");
@@ -191,6 +267,7 @@ if (database) {
   const wranglerConfigPath = path.join(targetPath, "wrangler.jsonc");
   const wranglerConfigContent = await fs.readFile(wranglerConfigPath, "utf8");
   let wranglerConfig = jsonc.parse(wranglerConfigContent);
+
   wranglerConfig = {
     ...wranglerConfig,
     ...d1_databases,
@@ -235,10 +312,10 @@ packageJson.scripts = packageScripts;
 await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
 
 aspinner.message("Cleaning up....");
-await $.raw`${pmCommands.exec} prettier -w .`
-  .cwd(targetPath)
-  .stdin("y\n")
-  .quiet();
+await execCommand(`${pmCommands.exec} prettier -w .`, {
+  cwd: targetPath,
+  stdin: "y\n",
+});
 
 aspinner.stop("Done!");
 
