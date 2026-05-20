@@ -27,7 +27,7 @@ export class ProjectScaffolder {
   async addDependencies() {
     this.spinner?.message('Adding dependencies...');
     await execCommand(
-      `${this.pmCommands.exec} sv add tailwindcss="plugins:typography" eslint prettier devtools-json --no-git-check --no-install`,
+      `${this.pmCommands.exec} sv add tailwindcss="plugins:typography" eslint prettier --no-git-check --no-install`,
       { cwd: this.targetPath, stdin: 'y\n', debug: this.debug }
     );
   }
@@ -95,7 +95,7 @@ export class ProjectScaffolder {
     // Initialize shadcn-svelte
     this.spinner?.message('Initializing shadcn-svelte...');
     await execCommand(
-      `${this.pmCommands.exec} shadcn-svelte@latest init --no-deps --base-color neutral --css ./src/routes/layout.css --lib-alias="\\$lib" --components-alias="\\$lib/components" --utils-alias="\\$lib/utils" --hooks-alias="\\$lib/hooks" --ui-alias="\\$lib/components/ui"`,
+      `${this.pmCommands.exec} shadcn-svelte@latest init --preset b0 --no-deps --skip-preflight --overwrite --base-color neutral --css ./src/routes/layout.css --lib-alias='$lib' --components-alias='$lib/components' --utils-alias='$lib/utils' --hooks-alias='$lib/hooks' --ui-alias='$lib/components/ui'`,
       { cwd: this.targetPath, stdin: 'y\n', debug: this.debug }
     );
 
@@ -125,7 +125,9 @@ export class ProjectScaffolder {
 
     // Build package list based on features
     const packages = [
+      'shadcn-svelte',
       'tw-animate-css',
+      '@fontsource-variable/inter',
       'tailwind-merge',
       'clsx',
       'tailwind-variants',
@@ -138,6 +140,9 @@ export class ProjectScaffolder {
     }
     if (this.config.auth) {
       packages.push('better-auth');
+    }
+    if (this.config.useful) {
+      packages.push('runed', 'neverthrow');
     }
 
     // Install additional packages
