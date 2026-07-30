@@ -1,6 +1,6 @@
 {
   "name": "create-addi-app",
-  "version": "2.1.0",
+  "version": "3.0.0",
   "description": "Scaffolds an `addi-stack` app.",
   "main": "index.js",
   "type": "module",
@@ -30,22 +30,25 @@
     "url": "git+https://github.com/addidotlol/create-addi-app.git"
   },
   "license": "MIT",
-  "packageManager": "pnpm@10.19.0",
+  "packageManager": "pnpm@11.18.0",
   "dependencies": {
-    "@clack/prompts": "^0.11.0",
-    "dax-sh": "^0.43.2",
-    "ejs": "^3.1.10",
-    "fs-extra": "^11.3.2",
-    "glob": "^11.0.3",
+    "@clack/prompts": "^1.7.0",
+    "dax-sh": "^0.44.1",
+    "ejs": "^6.0.1",
+    "fs-extra": "^11.4.0",
+    "glob": "^13.0.6",
     "jsonc-parser": "^3.3.1",
-    "prettier-plugin-svelte": "^3.4.0",
-    "prettier-plugin-tailwindcss": "^0.7.1"
+    "prettier-plugin-svelte": "^4.1.1",
+    "prettier-plugin-tailwindcss": "^0.8.1"
   },
   "devDependencies": {
-    "eslint": "^8.57.0",
-    "eslint-plugin-node": "^11.1.0"
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.8.0",
+    "eslint-plugin-n": "^18.2.2",
+    "globals": "^17.8.0",
+    "prettier": "^3.9.6"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.19.0"
   }
 }

@@ -181,6 +181,16 @@ export class ProjectScaffolder {
     );
   }
 
+  async generateWranglerTypes() {
+    if (!this.config.database) return;
+
+    this.spinner?.message('Generating Cloudflare types...');
+    await execCommand(
+      `${this.pmCommands.exec} wrangler types ./src/worker-configuration.d.ts`,
+      { cwd: this.targetPath, stdin: 'y\n', debug: this.debug }
+    );
+  }
+
   async updatePackageScripts() {
     this.spinner?.message('Finishing up...');
     const packageJsonPath = path.join(this.targetPath, 'package.json');
@@ -241,6 +251,7 @@ export class ProjectScaffolder {
     await this.setupShadcnSvelte();
     await this.installDependencies();
     await this.setupDatabase();
+    await this.generateWranglerTypes();
     await this.updatePackageScripts();
     await this.formatCode();
   }

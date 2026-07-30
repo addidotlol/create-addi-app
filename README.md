@@ -97,9 +97,8 @@ my-app/
 ├── package.json
 ├── svelte.config.js
 ├── vite.config.ts
-├── tailwind.config.js
 ├── drizzle.config.ts      # If database enabled
-└── wrangler.toml          # Cloudflare config
+└── wrangler.jsonc         # Cloudflare config
 ```
 
 ## 🤝 Contributing
@@ -118,7 +117,7 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🔗 Links
 
-- [SvelteKit Documentation](https://kit.svelte.dev/)
+- [SvelteKit Documentation](https://svelte.dev/docs/kit)
 - [Cloudflare Workers](https://workers.cloudflare.com/)
 - [Drizzle ORM](https://orm.drizzle.team/)
 - [Better Auth](https://better-auth.com/)

@@ -1,4 +1,12 @@
-import { intro, outro, spinner, text, confirm } from '@clack/prompts';
+import {
+  intro,
+  outro,
+  spinner,
+  text,
+  confirm,
+  isCancel,
+  cancel,
+} from '@clack/prompts';
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -15,6 +23,14 @@ import { ProjectScaffolder } from './lib/scaffolding/project-scaffolder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const templatesPath = path.join(__dirname, '..', 'templates');
+
+function ensureNotCancelled(value) {
+  if (isCancel(value)) {
+    cancel('Cancelled.');
+    process.exit(0);
+  }
+  return value;
+}
 
 async function main() {
   const parsedArgs = parseArgs();
@@ -42,15 +58,17 @@ async function main() {
       process.exit(1);
     }
   } else {
-    appName = await text({
-      message: 'What is the name of your app?',
-      placeholder: 'my-app',
-      validate: (value) => {
-        if (!value) return 'App name is required';
-        if (fs.existsSync(path.join(process.cwd(), value)))
-          return 'Directory already exists';
-      },
-    });
+    appName = ensureNotCancelled(
+      await text({
+        message: 'What is the name of your app?',
+        placeholder: 'my-app',
+        validate: (value) => {
+          if (!value) return 'App name is required';
+          if (fs.existsSync(path.join(process.cwd(), value)))
+            return 'Directory already exists';
+        },
+      })
+    );
   }
 
   // Resolve feature flags from CLI arguments
@@ -58,26 +76,32 @@ async function main() {
 
   // Prompt for missing feature flags
   if (database === undefined) {
-    database = await confirm({
-      message: 'Include Database (Drizzle ORM)?',
-      initialValue: true,
-    });
+    database = ensureNotCancelled(
+      await confirm({
+        message: 'Include Database (Drizzle ORM)?',
+        initialValue: true,
+      })
+    );
   }
 
   if (auth === undefined && database) {
-    auth = await confirm({
-      message: 'Include Authentication (Better Auth)?',
-      initialValue: true,
-    });
+    auth = ensureNotCancelled(
+      await confirm({
+        message: 'Include Authentication (Better Auth)?',
+        initialValue: true,
+      })
+    );
   } else if (auth === undefined) {
     auth = false;
   }
 
   if (useful === undefined) {
-    useful = await confirm({
-      message: 'Include Useful Packages (runed/neverthrow)?',
-      initialValue: true,
-    });
+    useful = ensureNotCancelled(
+      await confirm({
+        message: 'Include Useful Packages (runed/neverthrow)?',
+        initialValue: true,
+      })
+    );
   }
 
   const targetPath = path.join(process.cwd(), appName);
@@ -113,7 +137,7 @@ async function main() {
     aspinner.stop('Done!');
     outro(`App created at ${targetPath}!`);
   } catch (error) {
-    aspinner.stop('Failed!');
+    aspinner.error('Failed!');
     console.error('Error creating app:', error.message);
     if (parsedArgs.debugFlag) {
       console.error(error);
