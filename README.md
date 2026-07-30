@@ -1,124 +1,93 @@
 # create-addi-app
 
-An interactive CLI that scaffolds an `addi-stack` app using modern web technologies.
+Scaffolds an addi-app: a SvelteKit project that deploys to Cloudflare Workers, styled with Tailwind CSS v4 and shadcn-svelte, with optional Drizzle ORM on D1, Better Auth, and a couple of utility libraries (runed, neverthrow).
 
-## 🚀 What's Included
-
-- **SvelteKit** - Full-stack web framework
-- **Cloudflare Workers** - Edge computing platform
-- **Cloudflare D1** - SQLite database
-- **Drizzle ORM** - Type-safe database queries
-- **Better Auth** - Authentication solution
-- **shadcn-svelte** - Component library
-- **Tailwind CSS** - Utility-first CSS framework
-
-## 🌟 Features
-
-- **Package Manager Agnostic** - Works with npm, pnpm, yarn, bun, and deno
-- **Cross-Platform** - Windows, macOS, and Linux support
-- **Interactive & Non-Interactive Modes** - CLI flags for automation
-- **TypeScript Support** - Full TypeScript integration
-- **Modern Tooling** - ESLint, Prettier, and dev tools pre-configured
-
-## 🛠️ Platform Support
-
-This CLI works on Windows, macOS, and Linux. On Windows, the CLI automatically handles path spaces and uses appropriate command execution to ensure compatibility.
-
-## 📦 Installation & Usage
-
-Using your favorite package manager (npm, pnpm, yarn, bun, deno) run the following command:
+## Usage
 
 ```bash
-npm|pnpm|yarn|bun|deno create addi-app
-```
-
-## ⚙️ CLI Options
-
-The CLI supports both interactive and non-interactive modes. You can specify an app name as a positional argument and use flags to skip prompts.
-
-### Arguments
-
-- `app-name` - Name of the app to create (optional, will prompt if not provided)
-
-### Options
-
-- `--database, --no-database` - Include/Exclude Database (Drizzle ORM)
-- `--auth, --no-auth` - Include/Exclude Authentication (Better Auth)
-- `--useful, --no-useful` - Include/Exclude Useful Packages (runed/neverthrow)
-- `--debug` - Show verbose output from all commands (useful for troubleshooting)
-- `--help, -h` - Show help message
-
-### Examples
-
-```bash
-# Interactive mode with defaults
 npm create addi-app
-
-# Create app named 'my-app'
-npm create addi-app my-app
-
-# Create app with specific options
-npm create addi-app my-app --database --no-auth
-
-# Non-interactive with all options
-npm create addi-app --no-database --no-useful
-
-# Show help
-npm create addi-app --help
-
-# Debug mode (verbose output)
-npm create addi-app --debug
+# or: pnpm create addi-app / yarn create addi-app / bun create addi-app
 ```
 
-## 🐛 Troubleshooting
-
-If you encounter issues, use the `--debug` flag to see verbose output from all commands, which can help identify specific problems:
+Pass a name and flags to skip the prompts:
 
 ```bash
-npm create addi-app --debug
+npm create addi-app my-app -- --database --auth --useful
 ```
 
-## 📁 Project Structure
+| Flag                           | Effect                                     |
+| ------------------------------ | ------------------------------------------ |
+| `--database` / `--no-database` | Drizzle ORM on Cloudflare D1               |
+| `--auth` / `--no-auth`         | Better Auth (requires the database)        |
+| `--useful` / `--no-useful`     | runed + neverthrow                         |
+| `--debug`                      | Print output from every underlying command |
+| `--help`, `-h`                 | Usage                                      |
 
-Once your app is created, you'll get a well-structured project with:
+Anything you don't specify gets asked interactively. Unknown flags are an error, not a shrug.
+
+Requires Node 20.19 or newer. The CLI detects whichever package manager invoked it and uses that for the generated app.
+
+## What you get
+
+The generated app is a SvelteKit minimal template (TypeScript) wired to `@sveltejs/adapter-cloudflare` with a Workers-target `wrangler.jsonc`, plus:
+
+- Tailwind CSS v4 with the typography plugin
+- shadcn-svelte set up with the [amethyst-haze](https://tweakcn.com/r/themes/amethyst-haze.json) theme; button, button-group, card, and separator are preinstalled
+- ESLint and Prettier configured and passing out of the box
+- With `--database`: Drizzle ORM against a D1 binding named `D1`, migrations included in the workflow below
+- With `--auth`: Better Auth backed by that database, session handling already in `hooks.server.ts`
+
+Dependency versions resolve when you scaffold, not when this package was published, so a fresh app starts on current releases.
 
 ```
 my-app/
 ├── src/
 │   ├── lib/
-│   │   ├── components/     # shadcn-svelte components
-│   │   ├── server/         # Server-side code
-│   │   │   ├── db/        # Database setup (if enabled)
-│   │   │   └── auth.ts    # Authentication config (if enabled)
-│   │   └── utils.ts       # Utility functions
-│   ├── routes/             # SvelteKit routes
-│   ├── app.html           # App shell
-│   └── app.d.ts           # Type declarations
-├── package.json
-├── svelte.config.js
-├── vite.config.ts
-├── drizzle.config.ts      # If database enabled
-└── wrangler.jsonc         # Cloudflare config
+│   │   ├── components/ui/    shadcn-svelte components
+│   │   └── server/           db/ and auth.ts, when enabled
+│   ├── routes/
+│   ├── hooks.server.ts
+│   └── app.d.ts
+├── vite.config.ts             SvelteKit + adapter config lives here
+├── wrangler.jsonc
+├── drizzle.config.ts          only with --database
+└── worker-configuration.d.ts  generated by `wrangler types`
 ```
 
-## 🤝 Contributing
+## Working in the generated app
 
-This is a CLI tool for scaffolding the `addi-stack`. Contributions are welcome!
+```bash
+npm run dev          # vite dev server
+npm run check        # svelte-check
+npm run lint         # prettier + eslint
+npm run preview      # build, then wrangler dev
+```
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+With the database enabled, `db:gen` generates migrations (running Better Auth schema generation first if auth is on), and `db:migrate` applies them locally. `db:migrate:preview` and `db:migrate:remote` target Cloudflare.
 
-## 📄 License
+To deploy, create the database and give wrangler its id:
 
-MIT License - see the [LICENSE](LICENSE) file for details.
+```bash
+wrangler d1 create my-app    # add the printed database_id to wrangler.jsonc
+npm run db:migrate:remote
+npm run cf:deploy
+```
 
-## 🔗 Links
+Skip the D1 steps if you scaffolded without a database; `cf:deploy` alone is enough.
 
-- [SvelteKit Documentation](https://svelte.dev/docs/kit)
-- [Cloudflare Workers](https://workers.cloudflare.com/)
-- [Drizzle ORM](https://orm.drizzle.team/)
-- [Better Auth](https://better-auth.com/)
-- [shadcn-svelte](https://www.shadcn-svelte.com/)
+## How it works
+
+Instead of shelling out to `create-cloudflare@latest` and friends, this CLI calls the [Svelte CLI](https://github.com/sveltejs/cli)'s programmatic API directly: `create()` for the base project, `add()` for the tailwindcss, eslint, prettier, and Cloudflare adapter add-ons. shadcn-svelte runs from the generated app's own dependencies rather than a `@latest` download, and the remaining project files come from templates in this repo. Version ranges are deliberate everywhere, so a release of some upstream tool can't break scaffolding overnight.
+
+## Developing this repo
+
+```bash
+pnpm install
+pnpm test    # scaffolds test-app/ (gitignored) with everything enabled
+```
+
+Delete `test-app/` before rerunning. Contributions welcome.
+
+## License
+
+[MIT](LICENSE)

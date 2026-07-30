@@ -1,17 +1,15 @@
 {
   "name": "create-addi-app",
-  "version": "3.0.0",
-  "description": "Scaffolds an `addi-stack` app.",
-  "main": "index.js",
+  "version": "4.0.0",
+  "description": "Scaffolds an `addi-app` project.",
   "type": "module",
   "bin": {
-    "create-addi-stack": "index.js"
+    "create-addi-app": "index.js"
   },
   "scripts": {
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "type-check": "echo 'No TypeScript files to check'",
     "test": "node index.js test-app --database --auth --useful",
     "dev": "node index.js"
   },
@@ -33,13 +31,12 @@
   "packageManager": "pnpm@11.18.0",
   "dependencies": {
     "@clack/prompts": "^1.7.0",
-    "dax-sh": "^0.44.1",
+    "@sveltejs/sv-utils": ">=0.3.2 <1",
+    "cross-spawn": "^7.0.6",
     "ejs": "^6.0.1",
     "fs-extra": "^11.4.0",
     "glob": "^13.0.6",
-    "jsonc-parser": "^3.3.1",
-    "prettier-plugin-svelte": "^4.1.1",
-    "prettier-plugin-tailwindcss": "^0.8.1"
+    "sv": ">=0.16.6 <1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

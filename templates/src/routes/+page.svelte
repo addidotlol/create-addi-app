@@ -7,11 +7,11 @@
 <main class="flex h-screen w-screen">
 	<Card.Root class="mx-auto my-auto max-w-md">
 		<Card.Header>
-			<h1 class="text-sm text-muted-foreground">create-addi-stack</h1>
+			<h1 class="text-sm text-muted-foreground">create-addi-app</h1>
 		</Card.Header>
 		<Card.Content
-			>You've successfully set up your <code>addi-stack</code> project. For extra documentation on
-			using the <code>addi-stack</code>, check the docs below!</Card.Content
+			>You've successfully set up your <code>addi-app</code> project. For extra documentation on
+			using the <code>addi-app</code>, check the docs below!</Card.Content
 		>
 		<Card.Footer class="flex flex-col gap-2">
 			<ButtonGroup.Root class="w-full">
@@ -97,10 +97,10 @@
 			</ButtonGroup.Root>
 			<ButtonGroup.Root class="w-full">
 				<Button class="w-1/2">
-					<a href="https://create.addi.lol/docs">addi-stack Docs</a>
+					<a href="https://create.addi.lol/docs">addi-app Docs</a>
 				</Button>
 				<Button class="w-1/2">
-					<a href="https://github.com/addidotlol/addi-stack">GitHub</a>
+					<a href="https://github.com/addidotlol/create-addi-app">GitHub</a>
 				</Button>
 			</ButtonGroup.Root>
 		</Card.Footer>

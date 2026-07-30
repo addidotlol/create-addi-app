@@ -10,11 +10,7 @@ import {
 import fs from 'fs-extra';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import {
-  parseArgs,
-  showHelpAndExit,
-  resolveFeatureFlags,
-} from './lib/cli/args-parser.js';
+import { parseArgs, getHelpText } from './lib/cli/args-parser.js';
 import {
   detectPackageManager,
   getPackageManagerCommands,
@@ -32,29 +28,39 @@ function ensureNotCancelled(value) {
   return value;
 }
 
-async function main() {
-  const parsedArgs = parseArgs();
+function appNameError(value) {
+  if (!value) return 'App name is required';
+  if (!/^[a-z0-9][a-z0-9._-]*$/.test(value))
+    return 'App name must be lowercase letters, numbers, ".", "_", or "-", and start with a letter or number';
+  if (fs.existsSync(path.join(process.cwd(), value)))
+    return 'Directory already exists';
+}
 
-  // Show help and exit if requested
-  if (parsedArgs.helpFlag) {
-    showHelpAndExit();
+async function main() {
+  let parsedArgs;
+  try {
+    parsedArgs = parseArgs();
+  } catch (error) {
+    console.error(error.message);
+    console.log(getHelpText());
+    process.exit(1);
+  }
+
+  if (parsedArgs.help) {
+    console.log(getHelpText());
     process.exit(0);
   }
 
-  intro(
-    `create-addi-stack ${parsedArgs.debugFlag ? ' (debug mode enabled)' : ''}`
-  );
+  intro(`create-addi-app${parsedArgs.debug ? ' (debug mode enabled)' : ''}`);
 
-  // Detect package manager and get commands
   const packageManager = detectPackageManager();
   const pmCommands = getPackageManagerCommands(packageManager);
 
-  // Determine app name - from CLI arg or prompt
-  let appName;
-  if (parsedArgs.appNameFromArgs) {
-    appName = parsedArgs.appNameFromArgs;
-    if (fs.existsSync(path.join(process.cwd(), appName))) {
-      console.error(`Error: Directory '${appName}' already exists`);
+  let appName = parsedArgs.appName;
+  if (appName) {
+    const error = appNameError(appName);
+    if (error) {
+      console.error(`Error: ${error}`);
       process.exit(1);
     }
   } else {
@@ -62,19 +68,13 @@ async function main() {
       await text({
         message: 'What is the name of your app?',
         placeholder: 'my-app',
-        validate: (value) => {
-          if (!value) return 'App name is required';
-          if (fs.existsSync(path.join(process.cwd(), value)))
-            return 'Directory already exists';
-        },
+        validate: appNameError,
       })
     );
   }
 
-  // Resolve feature flags from CLI arguments
-  let { database, auth, useful } = resolveFeatureFlags(parsedArgs);
+  let { database, auth, useful } = parsedArgs;
 
-  // Prompt for missing feature flags
   if (database === undefined) {
     database = ensureNotCancelled(
       await confirm({
@@ -84,15 +84,22 @@ async function main() {
     );
   }
 
-  if (auth === undefined && database) {
-    auth = ensureNotCancelled(
-      await confirm({
-        message: 'Include Authentication (Better Auth)?',
-        initialValue: true,
-      })
+  if (auth === undefined) {
+    auth = database
+      ? ensureNotCancelled(
+          await confirm({
+            message: 'Include Authentication (Better Auth)?',
+            initialValue: true,
+          })
+        )
+      : false;
+  }
+
+  if (auth && !database) {
+    console.error(
+      'Error: authentication requires the database, enable it or drop --auth'
     );
-  } else if (auth === undefined) {
-    auth = false;
+    process.exit(1);
   }
 
   if (useful === undefined) {
@@ -105,30 +112,25 @@ async function main() {
   }
 
   const targetPath = path.join(process.cwd(), appName);
-  const runCmd = pmCommands.run.split(' ')[0];
-  const runPrefix = packageManager === 'deno' ? 'deno task' : `${runCmd} run`;
 
-  // Create project configuration
   const config = {
     appName,
     database,
     auth,
     useful,
     packageManager,
-    runPrefix,
+    runPrefix: pmCommands.run,
   };
 
-  // Scaffold the project
   const aspinner = spinner();
-  aspinner.start('Creating your addi-stack app...');
+  aspinner.start('Creating your addi-app...');
 
-  // Initialize scaffolder
   const scaffolder = new ProjectScaffolder({
     templatesPath,
     targetPath,
     config,
     pmCommands,
-    debug: parsedArgs.debugFlag,
+    debug: parsedArgs.debug,
     spinner: aspinner,
   });
 
@@ -139,14 +141,16 @@ async function main() {
   } catch (error) {
     aspinner.error('Failed!');
     console.error('Error creating app:', error.message);
-    if (parsedArgs.debugFlag) {
+    if (parsedArgs.debug) {
       console.error(error);
+      console.error(`Keeping ${targetPath} for inspection.`);
+    } else {
+      await fs.remove(targetPath);
     }
     process.exit(1);
   }
 }
 
-// Handle uncaught errors
 process.on('uncaughtException', (error) => {
   console.error('Uncaught exception:', error.message);
   process.exit(1);
@@ -157,7 +161,6 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
-// Run the main function
 main().catch((error) => {
   console.error('Fatal error:', error.message);
   process.exit(1);

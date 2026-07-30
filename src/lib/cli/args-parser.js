@@ -1,40 +1,10 @@
-// Parse and validate CLI arguments
-export function parseArgs() {
-  const args = process.argv.slice(2);
-  const debugFlag = args.includes('--debug');
-  const helpFlag = args.includes('--help') || args.includes('-h');
-  const databaseFlag = args.includes('--database');
-  const noDatabaseFlag = args.includes('--no-database');
-  const authFlag = args.includes('--auth');
-  const noAuthFlag = args.includes('--no-auth');
-  const usefulFlag = args.includes('--useful');
-  const noUsefulFlag = args.includes('--no-useful');
+import { parseArgs as parseNodeArgs } from 'node:util';
 
-  // Extract app name from positional arguments (first non-flag argument)
-  const positionalArgs = args.filter((arg) => !arg.startsWith('--'));
-  const appNameFromArgs = positionalArgs[0];
-
-  return {
-    debugFlag,
-    helpFlag,
-    databaseFlag,
-    noDatabaseFlag,
-    authFlag,
-    noAuthFlag,
-    usefulFlag,
-    noUsefulFlag,
-    appNameFromArgs,
-    args,
-  };
-}
-
-// Show help message and exit
-export function showHelpAndExit() {
-  console.log(`
-create-addi-stack - Scaffolds an addi-stack app
+const HELP_TEXT = `
+create-addi-app - Scaffolds an addi-app
 
 Usage:
-  create-addi-stack [app-name] [options]
+  create-addi-app [app-name] [options]
 
 Arguments:
   app-name     Name of the app to create (optional, will prompt if not provided)
@@ -42,50 +12,50 @@ Arguments:
 Options:
   --database, --no-database    Include/Exclude Database (Drizzle ORM)
   --auth, --no-auth            Include/Exclude Authentication (Better Auth)
-  --useful, --no-useful       Include/Exclude Useful Packages (runed/neverthrow)
+  --useful, --no-useful        Include/Exclude Useful Packages (runed/neverthrow)
   --debug                      Show verbose output from all commands
-  --help, -h                  Show this help message
+  --help, -h                   Show this help message
 
 Examples:
-  create-addi-stack                        # Interactive mode with defaults
-  create-addi-stack my-app                 # Create app named 'my-app'
-  create-addi-stack my-app --database       # Create app with database enabled
-  create-addi-stack --no-database --no-auth  # Create without database and auth
-  create-addi-stack --debug                # Show verbose output
-`);
-  // Return early instead of exiting, let caller handle exit
-  return { shouldExit: true };
+  create-addi-app                          # Interactive mode with defaults
+  create-addi-app my-app                   # Create app named 'my-app'
+  create-addi-app my-app --database        # Create app with database enabled
+  create-addi-app --no-database --no-auth  # Create without database and auth
+  create-addi-app --debug                  # Show verbose output
+`;
+
+function resolveToggle(values, name) {
+  if (values[name]) return true;
+  if (values[`no-${name}`]) return false;
+  return undefined;
 }
 
-// Resolve feature flags based on CLI arguments and prompts
-export function resolveFeatureFlags({
-  databaseFlag,
-  noDatabaseFlag,
-  authFlag,
-  noAuthFlag,
-  usefulFlag,
-  noUsefulFlag,
-}) {
-  let database;
-  if (databaseFlag) {
-    database = true;
-  } else if (noDatabaseFlag) {
-    database = false;
-  }
+export function parseArgs(argv = process.argv.slice(2)) {
+  const { values, positionals } = parseNodeArgs({
+    args: argv,
+    options: {
+      database: { type: 'boolean' },
+      'no-database': { type: 'boolean' },
+      auth: { type: 'boolean' },
+      'no-auth': { type: 'boolean' },
+      useful: { type: 'boolean' },
+      'no-useful': { type: 'boolean' },
+      debug: { type: 'boolean' },
+      help: { type: 'boolean', short: 'h' },
+    },
+    allowPositionals: true,
+  });
 
-  let auth;
-  if (authFlag) {
-    auth = true;
-  } else if (noAuthFlag) {
-    auth = false;
-  }
+  return {
+    appName: positionals[0],
+    database: resolveToggle(values, 'database'),
+    auth: resolveToggle(values, 'auth'),
+    useful: resolveToggle(values, 'useful'),
+    debug: values.debug ?? false,
+    help: values.help ?? false,
+  };
+}
 
-  let useful;
-  if (usefulFlag) {
-    useful = true;
-  } else if (noUsefulFlag) {
-    useful = false;
-  }
-
-  return { database, auth, useful };
+export function getHelpText() {
+  return HELP_TEXT;
 }

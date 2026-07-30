@@ -18,10 +18,10 @@ declare global {
 			user?: NonNullable<Awaited<ReturnType<BetterAuth['api']['getSession']>>>['user'];
 		}<% } %>
 
-		interface Locals {
+		<% if (auth || database) { %>interface Locals {
 			<% if (auth) { %>auth: Authentication;<% } %>
 			<% if (database) { %>database: ReturnType<typeof getDrizzle>;<% } %>
-		}
+		}<% } %>
 	}
 }
 

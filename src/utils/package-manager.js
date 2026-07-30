@@ -1,4 +1,3 @@
-// Detect package manager from user agent or lockfile
 export function detectPackageManager() {
   const userAgent = process.env.npm_config_user_agent;
 
@@ -10,11 +9,9 @@ export function detectPackageManager() {
     if (userAgent.includes('npm')) return 'npm';
   }
 
-  // Default to npm if cannot detect
   return 'npm';
 }
 
-// Get package manager specific commands
 export function getPackageManagerCommands(pm) {
   const commands = {
     npm: {
@@ -26,15 +23,15 @@ export function getPackageManagerCommands(pm) {
     },
     pnpm: {
       install: 'pnpm install',
-      add: 'pnpm install',
-      exec: 'pnpx',
+      add: 'pnpm add',
+      exec: 'pnpm exec',
       run: 'pnpm run',
       dlx: 'pnpm dlx',
     },
     yarn: {
       install: 'yarn install',
       add: 'yarn add',
-      exec: 'yarn dlx',
+      exec: 'yarn exec',
       run: 'yarn run',
       dlx: 'yarn dlx',
     },
