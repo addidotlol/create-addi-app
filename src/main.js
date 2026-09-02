@@ -13,7 +13,7 @@ import { fileURLToPath } from 'url';
 import { parseArgs, getHelpText } from './lib/cli/args-parser.js';
 import {
   detectPackageManager,
-  getPackageManagerCommands,
+  createCommandResolver,
 } from './utils/package-manager.js';
 import { ProjectScaffolder } from './lib/scaffolding/project-scaffolder.js';
 
@@ -54,7 +54,7 @@ async function main() {
   intro(`create-addi-app${parsedArgs.debug ? ' (debug mode enabled)' : ''}`);
 
   const packageManager = detectPackageManager();
-  const pmCommands = getPackageManagerCommands(packageManager);
+  const commands = createCommandResolver(packageManager);
 
   let appName = parsedArgs.appName;
   if (appName) {
@@ -113,14 +113,7 @@ async function main() {
 
   const targetPath = path.join(process.cwd(), appName);
 
-  const config = {
-    appName,
-    database,
-    auth,
-    useful,
-    packageManager,
-    runPrefix: pmCommands.run,
-  };
+  const config = { appName, database, auth, useful, packageManager };
 
   const aspinner = spinner();
   aspinner.start('Creating your addi-app...');
@@ -129,7 +122,7 @@ async function main() {
     templatesPath,
     targetPath,
     config,
-    pmCommands,
+    commands,
     debug: parsedArgs.debug,
     spinner: aspinner,
   });
@@ -156,8 +149,9 @@ process.on('uncaughtException', (error) => {
   process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled rejection at:', promise, 'reason:', reason);
+process.on('unhandledRejection', (reason) => {
+  const message = reason instanceof Error ? reason.message : String(reason);
+  console.error('Unhandled rejection:', message);
   process.exit(1);
 });
 

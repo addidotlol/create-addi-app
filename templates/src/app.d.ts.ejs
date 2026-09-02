@@ -1,7 +1,7 @@
-// See https://svelte.dev/docs/kit/types#app.d.ts[]
+// See https://svelte.dev/docs/kit/types#app.d.ts
 // for information about these interfaces
 //
-<% if (auth) { %>import type InitAuth from '$lib/server/auth';<% } %>
+<% if (auth) { %>import type { createAuth } from '$lib/server/auth';<% } %>
 <% if (database) { %>import type { getDrizzle } from '$lib/server/db';<% } %>
 
 declare global {
@@ -12,7 +12,7 @@ declare global {
 			ctx: ExecutionContext;
 		}
 
-		<% if (auth) { %>type BetterAuth = ReturnType<typeof InitAuth>;
+		<% if (auth) { %>type BetterAuth = ReturnType<typeof createAuth>;
 		interface Authentication extends BetterAuth {
 			session?: NonNullable<Awaited<ReturnType<BetterAuth['api']['getSession']>>>['session'];
 			user?: NonNullable<Awaited<ReturnType<BetterAuth['api']['getSession']>>>['user'];

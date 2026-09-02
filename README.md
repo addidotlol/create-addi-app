@@ -25,7 +25,7 @@ npm create addi-app my-app -- --database --auth --useful
 
 Anything you don't specify gets asked interactively. Unknown flags are an error, not a shrug.
 
-Requires Node 20.19 or newer. The CLI detects whichever package manager invoked it and uses that for the generated app.
+Requires Node 22.12 or newer. The CLI detects whichever package manager invoked it (npm, pnpm, yarn, bun, or deno) and uses that for the generated app.
 
 ## What you get
 
@@ -35,9 +35,9 @@ The generated app is a SvelteKit minimal template (TypeScript) wired to `@svelte
 - shadcn-svelte set up with the [amethyst-haze](https://tweakcn.com/r/themes/amethyst-haze.json) theme; button, button-group, card, and separator are preinstalled
 - ESLint and Prettier configured and passing out of the box
 - With `--database`: Drizzle ORM against a D1 binding named `D1`, migrations included in the workflow below
-- With `--auth`: Better Auth backed by that database, session handling already in `hooks.server.ts`
+- With `--auth`: Better Auth backed by that database, session handling already in `hooks.server.ts`, and the `auth` CLI installed locally so schema generation matches the runtime version
 
-Dependency versions resolve when you scaffold, not when this package was published, so a fresh app starts on current releases.
+Dependency versions resolve when you scaffold, not when this package was published, so a fresh app starts on current releases. Drizzle is configured with `snake_case` casing in both `drizzle.config.ts` and the runtime client, so columns declared without an explicit name migrate and query the same way.
 
 ```
 my-app/
@@ -63,7 +63,7 @@ npm run lint         # prettier + eslint
 npm run preview      # build, then wrangler dev
 ```
 
-With the database enabled, `db:gen` generates migrations (running Better Auth schema generation first if auth is on), and `db:migrate` applies them locally. `db:migrate:preview` and `db:migrate:remote` target Cloudflare.
+With the database enabled, `db:gen` generates migrations (running `auth:gen`, the Better Auth schema generator, first if auth is on), and `db:migrate` applies them locally. `db:migrate:preview` and `db:migrate:remote` target Cloudflare.
 
 To deploy, create the database and give wrangler its id:
 
@@ -77,16 +77,17 @@ Skip the D1 steps if you scaffolded without a database; `cf:deploy` alone is eno
 
 ## How it works
 
-Instead of shelling out to `create-cloudflare@latest` and friends, this CLI calls the [Svelte CLI](https://github.com/sveltejs/cli)'s programmatic API directly: `create()` for the base project, `add()` for the tailwindcss, eslint, prettier, and Cloudflare adapter add-ons. shadcn-svelte runs from the generated app's own dependencies rather than a `@latest` download, and the remaining project files come from templates in this repo. Version ranges are deliberate everywhere, so a release of some upstream tool can't break scaffolding overnight.
+Instead of shelling out to `create-cloudflare@latest` and friends, this CLI calls the [Svelte CLI](https://github.com/sveltejs/cli)'s programmatic API directly: `create()` for the base project, `add()` for the tailwindcss, eslint, prettier, and Cloudflare adapter add-ons. shadcn-svelte runs from the generated app's own dependencies rather than a `@latest` download, and the remaining project files come from templates in this repo. This package pins its own dependencies to explicit ranges, so a release of the Svelte CLI can't break scaffolding overnight; the generated app's dependencies are installed at whatever their current versions are.
 
 ## Developing this repo
 
 ```bash
 pnpm install
-pnpm test    # scaffolds test-app/ (gitignored) with everything enabled
+pnpm test        # scaffolds every flag combination into a temp dir and runs lint, check, db:gen, and build in each
+pnpm test:app    # scaffolds test-app/ (gitignored) with everything enabled and keeps it for poking at
 ```
 
-Delete `test-app/` before rerunning. Contributions welcome.
+Both scripts remove any existing output before scaffolding. Run `pnpm test` before publishing. Contributions welcome.
 
 ## License
 

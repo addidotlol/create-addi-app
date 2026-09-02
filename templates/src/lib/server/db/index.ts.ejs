@@ -1,0 +1,12 @@
+import { drizzle } from 'drizzle-orm/d1';
+import * as schemas from './schema';
+<% if (auth) { %>import * as authSchemas from './schema/auth';
+<% } %>
+export const getDrizzle = (binding: D1Database) =>
+  drizzle(binding, {
+    casing: 'snake_case',
+    schema: {
+      ...schemas,<% if (auth) { %>
+      ...authSchemas,<% } %>
+    },
+  });

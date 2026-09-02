@@ -1,9 +1,8 @@
-<% if (auth) { %>import auth from '$lib/server/auth'; // path to your auth file
+<% if (auth) { %>import { createAuth } from '$lib/server/auth';
 import { svelteKitHandler } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
 <% } %><% if (database) { %>import { getDrizzle } from '$lib/server/db';
 <% } %>
-
 export async function handle({ event, resolve }) {
 <% if (database) { %>	if (!event.platform?.env.D1) {
 		throw new Error(
@@ -12,7 +11,7 @@ export async function handle({ event, resolve }) {
 	}
 
 	event.locals.database = getDrizzle(event.platform?.env.D1);
-<% } %><% if (auth) { %>	event.locals.auth = auth(event.locals.database);
+<% } %><% if (auth) { %>	event.locals.auth = createAuth(event.platform.env.D1);
 
 	const session = await event.locals.auth.api.getSession({
 		headers: event.request.headers
@@ -25,5 +24,4 @@ export async function handle({ event, resolve }) {
 
 	return svelteKitHandler({ event, resolve, auth: event.locals.auth, building });
 <% } else { %>	return resolve(event);
-<% } %>
-}
+<% } %>}
