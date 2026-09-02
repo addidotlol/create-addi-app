@@ -1,55 +1,26 @@
+import { resolveCommand } from '@sveltejs/sv-utils';
+
+const SUPPORTED = ['pnpm', 'yarn', 'bun', 'deno', 'npm'];
+
 export function detectPackageManager() {
-  const userAgent = process.env.npm_config_user_agent;
-
-  if (userAgent) {
-    if (userAgent.includes('pnpm')) return 'pnpm';
-    if (userAgent.includes('yarn')) return 'yarn';
-    if (userAgent.includes('bun')) return 'bun';
-    if (userAgent.includes('deno')) return 'deno';
-    if (userAgent.includes('npm')) return 'npm';
-  }
-
-  return 'npm';
+  const userAgent = process.env.npm_config_user_agent ?? '';
+  return SUPPORTED.find((pm) => userAgent.includes(pm)) ?? 'npm';
 }
 
-export function getPackageManagerCommands(pm) {
-  const commands = {
-    npm: {
-      install: 'npm install',
-      add: 'npm install',
-      exec: 'npx',
-      run: 'npm run',
-      dlx: 'npx',
-    },
-    pnpm: {
-      install: 'pnpm install',
-      add: 'pnpm add',
-      exec: 'pnpm exec',
-      run: 'pnpm run',
-      dlx: 'pnpm dlx',
-    },
-    yarn: {
-      install: 'yarn install',
-      add: 'yarn add',
-      exec: 'yarn exec',
-      run: 'yarn run',
-      dlx: 'yarn dlx',
-    },
-    bun: {
-      install: 'bun install',
-      add: 'bun add',
-      exec: 'bunx',
-      run: 'bun run',
-      dlx: 'bunx',
-    },
-    deno: {
-      install: 'deno install',
-      add: 'deno install',
-      exec: 'deno run',
-      run: 'deno task',
-      dlx: 'deno run',
-    },
+export function createCommandResolver(packageManager) {
+  const resolve = (command, args) => {
+    const resolved = resolveCommand(packageManager, command, args);
+    if (!resolved) {
+      throw new Error(`${packageManager} cannot run '${command}'`);
+    }
+    return [resolved.command, ...resolved.args];
   };
 
-  return commands[pm] || commands.npm;
+  return {
+    install: () => resolve('install', []),
+    add: (packages, { dev = false } = {}) =>
+      resolve('add', dev ? ['-D', ...packages] : packages),
+    exec: (binary, args = []) => resolve('execute-local', [binary, ...args]),
+    runScript: (script) => resolve('run', [script]).join(' '),
+  };
 }

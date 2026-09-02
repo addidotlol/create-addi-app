@@ -3,8 +3,22 @@ import path from 'path';
 import ejs from 'ejs';
 import { glob } from 'glob';
 import { create, add, officialAddons } from 'sv';
-import { pnpm } from '@sveltejs/sv-utils';
+import { parse, pnpm } from '@sveltejs/sv-utils';
 import { execCommand } from '../../utils/command-executor.js';
+
+const BASE_PACKAGES = [
+  'shadcn-svelte',
+  'tw-animate-css',
+  '@fontsource-variable/inter',
+  'tailwind-merge',
+  'clsx',
+  'tailwind-variants',
+  'bits-ui',
+  '@lucide/svelte',
+];
+
+const SHADCN_COMPONENTS = ['button', 'button-group', 'card', 'separator'];
+const THEME_URL = 'https://tweakcn.com/r/themes/amethyst-haze.json';
 
 function findUp(fileName, startDir) {
   let dir = startDir;
@@ -22,20 +36,28 @@ export class ProjectScaffolder {
     this.templatesPath = options.templatesPath;
     this.targetPath = options.targetPath;
     this.config = options.config;
-    this.pmCommands = options.pmCommands;
+    this.commands = options.commands;
     this.debug = options.debug;
     this.spinner = options.spinner;
   }
 
-  async run(...args) {
-    await execCommand(args.flat(), {
-      cwd: this.targetPath,
-      debug: this.debug,
-    });
+  async run(args) {
+    await execCommand(args, { cwd: this.targetPath, debug: this.debug });
   }
 
-  exec(binary) {
-    return [...this.pmCommands.exec.split(' '), binary];
+  templateFileIsWanted(relPath) {
+    const { database, auth } = this.config;
+    const databaseOnly = ['drizzle.config.ts', 'src/lib/server/db'];
+    const authOnly = [
+      'src/lib/server/auth.ts',
+      'src/lib/auth.ts',
+      'src/lib/server/db/schema/auth.ts',
+    ];
+    const matches = (prefixes) =>
+      prefixes.some((p) => relPath === p || relPath.startsWith(`${p}/`));
+    if (!database && matches(databaseOnly)) return false;
+    if (!auth && matches(authOnly)) return false;
+    return true;
   }
 
   async initializeSvelteKit() {
@@ -86,71 +108,56 @@ export class ProjectScaffolder {
     await fs.copy(this.templatesPath, this.targetPath, {
       filter: (src) => {
         if (src.endsWith('.ejs')) return false;
-        const relPath = path.relative(this.templatesPath, src);
-        if (!this.config.database && relPath === 'drizzle.config.ts')
-          return false;
-        if (!this.config.database && relPath.startsWith('src/lib/server/db'))
-          return false;
-        if (!this.config.auth && relPath === 'src/lib/server/auth.ts')
-          return false;
-        if (!this.config.auth && relPath === 'src/lib/auth.ts') return false;
-        return true;
+        return this.templateFileIsWanted(
+          path.relative(this.templatesPath, src)
+        );
       },
     });
   }
 
   async renderEjsFiles() {
     const ejsFiles = await glob('**/*.ejs', { cwd: this.templatesPath });
+    const outputs = ejsFiles
+      .map((ejsFile) => ({ ejsFile, relPath: ejsFile.replace(/\.ejs$/, '') }))
+      .filter(({ relPath }) => this.templateFileIsWanted(relPath));
 
-    for (const ejsFile of ejsFiles) {
-      const templatePath = path.join(this.templatesPath, ejsFile);
-      const outputPath = path.join(
-        this.targetPath,
-        ejsFile.replace('.ejs', '')
+    for (const { ejsFile, relPath } of outputs) {
+      const content = await ejs.renderFile(
+        path.join(this.templatesPath, ejsFile),
+        {
+          database: this.config.database,
+          auth: this.config.auth,
+          useful: this.config.useful,
+          appName: this.config.appName,
+          packageManager: this.config.packageManager,
+        }
       );
-
-      const content = await ejs.renderFile(templatePath, {
-        database: this.config.database,
-        auth: this.config.auth,
-        useful: this.config.useful,
-        appName: this.config.appName,
-        packageManager: this.config.packageManager,
-        pmCommands: this.pmCommands,
-        runPrefix: this.config.runPrefix,
-      });
-
-      await fs.writeFile(outputPath, content);
+      await fs.outputFile(path.join(this.targetPath, relPath), content);
     }
   }
 
   async configureWrangler() {
     this.spinner?.message('Configuring wrangler...');
     const wranglerConfigPath = path.join(this.targetPath, 'wrangler.jsonc');
-    const wranglerConfig = JSON.parse(
+    const { data, generateCode } = parse.json(
       await fs.readFile(wranglerConfigPath, 'utf8')
     );
 
-    wranglerConfig.observability = { enabled: true };
-    wranglerConfig.upload_source_maps = true;
+    data.observability = { enabled: true };
+    data.upload_source_maps = true;
 
-    wranglerConfig.compatibility_flags ??= [];
-    if (!wranglerConfig.compatibility_flags.includes('nodejs_compat')) {
-      wranglerConfig.compatibility_flags.push('nodejs_compat');
+    data.compatibility_flags ??= [];
+    if (!data.compatibility_flags.includes('nodejs_compat')) {
+      data.compatibility_flags.push('nodejs_compat');
     }
 
     if (this.config.database) {
-      wranglerConfig.d1_databases = [
-        {
-          binding: 'D1',
-          database_name: this.config.appName,
-        },
+      data.d1_databases = [
+        { binding: 'D1', database_name: this.config.appName },
       ];
     }
 
-    await fs.writeFile(
-      wranglerConfigPath,
-      JSON.stringify(wranglerConfig, null, 2)
-    );
+    await fs.writeFile(wranglerConfigPath, generateCode());
   }
 
   async allowPnpmBuilds() {
@@ -171,71 +178,66 @@ export class ProjectScaffolder {
 
   async installDependencies() {
     this.spinner?.message('Installing dependencies...');
-    await this.run(this.pmCommands.install.split(' '));
+    await this.run(this.commands.install());
 
-    const packages = [
-      'shadcn-svelte',
-      'tw-animate-css',
-      '@fontsource-variable/inter',
-      'tailwind-merge',
-      'clsx',
-      'tailwind-variants',
-      'bits-ui',
-      '@lucide/svelte',
-    ];
+    const packages = [...BASE_PACKAGES];
+    const devPackages = [];
 
-    if (this.config.database) {
-      packages.push('drizzle-orm', 'drizzle-kit');
-    }
+    if (this.config.database) packages.push('drizzle-orm', 'drizzle-kit');
     if (this.config.auth) {
       packages.push('better-auth');
+      devPackages.push('auth');
     }
-    if (this.config.useful) {
-      packages.push('runed', 'neverthrow');
-    }
+    if (this.config.useful) packages.push('runed', 'neverthrow');
 
-    await this.run(this.pmCommands.add.split(' '), packages);
+    await this.run(this.commands.add(packages));
+    if (devPackages.length > 0) {
+      await this.run(this.commands.add(devPackages, { dev: true }));
+    }
   }
 
   async setupShadcnSvelte() {
     this.spinner?.message('Initializing shadcn-svelte...');
-    await this.run(this.exec('shadcn-svelte'), [
-      'init',
-      '--preset',
-      'b0',
-      '--no-deps',
-      '--skip-preflight',
-      '--overwrite',
-      '--base-color',
-      'neutral',
-      '--css',
-      './src/routes/layout.css',
-      '--lib-alias=$lib',
-      '--components-alias=$lib/components',
-      '--utils-alias=$lib/utils',
-      '--hooks-alias=$lib/hooks',
-      '--ui-alias=$lib/components/ui',
-    ]);
+    await this.run(
+      this.commands.exec('shadcn-svelte', [
+        'init',
+        '--preset',
+        'b0',
+        '--no-deps',
+        '--skip-preflight',
+        '--overwrite',
+        '--base-color',
+        'neutral',
+        '--css',
+        './src/routes/layout.css',
+        '--lib-alias=$lib',
+        '--components-alias=$lib/components',
+        '--utils-alias=$lib/utils',
+        '--hooks-alias=$lib/hooks',
+        '--ui-alias=$lib/components/ui',
+      ])
+    );
 
     this.spinner?.message('Installing theme...');
-    await this.run(this.exec('shadcn-svelte'), [
-      'add',
-      '--no-deps',
-      '--yes',
-      '--overwrite',
-      'https://tweakcn.com/r/themes/amethyst-haze.json',
-    ]);
+    await this.run(
+      this.commands.exec('shadcn-svelte', [
+        'add',
+        '--no-deps',
+        '--yes',
+        '--overwrite',
+        THEME_URL,
+      ])
+    );
 
     this.spinner?.message('Installing components...');
-    await this.run(this.exec('shadcn-svelte'), [
-      'add',
-      '--no-deps',
-      '--yes',
-      'button',
-      'button-group',
-      'card',
-      'separator',
-    ]);
+    await this.run(
+      this.commands.exec('shadcn-svelte', [
+        'add',
+        '--no-deps',
+        '--yes',
+        ...SHADCN_COMPONENTS,
+      ])
+    );
   }
 
   async tuneEslintConfig() {
@@ -260,52 +262,52 @@ export class ProjectScaffolder {
 
   async generateWranglerTypes() {
     this.spinner?.message('Generating Cloudflare types...');
-    await this.run(this.exec('wrangler'), ['types']);
+    await this.run(this.commands.exec('wrangler', ['types']));
   }
 
   async updatePackageScripts() {
     this.spinner?.message('Finishing up...');
     const packageJsonPath = path.join(this.targetPath, 'package.json');
-    const packageJson = JSON.parse(await fs.readFile(packageJsonPath, 'utf8'));
-    const runPrefix = this.config.runPrefix;
+    const { data, generateCode } = parse.json(
+      await fs.readFile(packageJsonPath, 'utf8')
+    );
+    const run = (script) => this.commands.runScript(script);
 
-    const packageScripts = {
+    const scripts = {
       dev: 'vite dev',
       build: 'vite build',
-      preview: `${runPrefix} build && wrangler dev`,
+      preview: `${run('build')} && wrangler dev`,
       prepare: "svelte-kit sync || echo ''",
       check: 'svelte-kit sync && svelte-check --tsconfig ./tsconfig.json',
       'check:watch':
         'svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch',
       format: 'prettier --write .',
       lint: 'prettier --check . && eslint .',
-      'cf:deploy': `${runPrefix} build && wrangler deploy`,
+      'cf:deploy': `${run('build')} && wrangler deploy`,
       'cf:gen': 'wrangler types',
     };
 
     if (this.config.database) {
-      packageScripts['db:gen'] = 'drizzle-kit generate';
-      packageScripts['db:migrate'] = 'wrangler d1 migrations apply D1 --local';
-      packageScripts['db:migrate:preview'] =
+      scripts['db:gen'] = 'drizzle-kit generate';
+      scripts['db:migrate'] = 'wrangler d1 migrations apply D1 --local';
+      scripts['db:migrate:preview'] =
         'wrangler d1 migrations apply D1 --preview';
-      packageScripts['db:migrate:remote'] =
-        'wrangler d1 migrations apply D1 --remote';
-
-      if (this.config.auth) {
-        packageScripts['db:gen'] =
-          `${runPrefix} auth:gen && drizzle-kit generate`;
-        packageScripts['auth:gen'] =
-          `${this.pmCommands.dlx} @better-auth/cli generate --config ./src/lib/server/auth.ts --output ./src/lib/server/db/schema/auth.ts`;
-      }
+      scripts['db:migrate:remote'] = 'wrangler d1 migrations apply D1 --remote';
     }
 
-    packageJson.scripts = packageScripts;
-    await fs.writeFile(packageJsonPath, JSON.stringify(packageJson, null, 2));
+    if (this.config.auth) {
+      scripts['auth:gen'] =
+        'auth generate --config ./src/lib/server/auth.ts --output ./src/lib/server/db/schema/auth.ts --yes';
+      scripts['db:gen'] = `${run('auth:gen')} && drizzle-kit generate`;
+    }
+
+    data.scripts = scripts;
+    await fs.writeFile(packageJsonPath, generateCode());
   }
 
   async formatCode() {
     this.spinner?.message('Cleaning up...');
-    await this.run(this.exec('prettier'), ['--write', '.']);
+    await this.run(this.commands.exec('prettier', ['--write', '.']));
   }
 
   async scaffold() {

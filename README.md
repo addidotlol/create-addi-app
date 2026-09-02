@@ -74,10 +74,11 @@ wrangler d1 create my-app    # add the printed database_id to wrangler.jsonc
 
 ```bash
 pnpm install
-pnpm test    # scaffolds test-app/ (gitignored) with everything enabled
+pnpm test        # scaffolds every flag combination into a temp dir and runs lint, check, db:gen, and build in each
+pnpm test:app    # scaffolds test-app/ (gitignored) with everything enabled and keeps it for poking at
 ```
 
-Delete `test-app/` before rerunning. Contributions welcome.
+Both scripts remove any existing output before scaffolding. Run `pnpm test` before publishing. Contributions welcome.
 
 ## License
 
