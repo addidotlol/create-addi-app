@@ -9,7 +9,7 @@ npm create addi-app
 # or: pnpm create addi-app / yarn create addi-app / bun create addi-app
 ```
 
-Pass a name and flags to skip the prompts:
+Alternatively, you may use flags to automate app creation:
 
 ```bash
 npm create addi-app my-app -- --database --auth --useful
@@ -23,21 +23,16 @@ npm create addi-app my-app -- --database --auth --useful
 | `--debug`                      | Print output from every underlying command |
 | `--help`, `-h`                 | Usage                                      |
 
-Anything you don't specify gets asked interactively. Unknown flags are an error, not a shrug.
-
-Requires Node 22.12 or newer. The CLI detects whichever package manager invoked it (npm, pnpm, yarn, bun, or deno) and uses that for the generated app.
+Requires Node 20.19 or newer.
 
 ## What you get
 
-The generated app is a SvelteKit minimal template (TypeScript) wired to `@sveltejs/adapter-cloudflare` with a Workers-target `wrangler.jsonc`, plus:
-
+- SvelteKit w/ Cloudflare Adapter
 - Tailwind CSS v4 with the typography plugin
-- shadcn-svelte set up with the [amethyst-haze](https://tweakcn.com/r/themes/amethyst-haze.json) theme; button, button-group, card, and separator are preinstalled
-- ESLint and Prettier configured and passing out of the box
-- With `--database`: Drizzle ORM against a D1 binding named `D1`, migrations included in the workflow below
-- With `--auth`: Better Auth backed by that database, session handling already in `hooks.server.ts`, and the `auth` CLI installed locally so schema generation matches the runtime version
-
-Dependency versions resolve when you scaffold, not when this package was published, so a fresh app starts on current releases. Drizzle is configured with `snake_case` casing in both `drizzle.config.ts` and the runtime client, so columns declared without an explicit name migrate and query the same way.
+- shadcn-svelte set up with the [amethyst-haze](https://tweakcn.com/r/themes/amethyst-haze.json) theme.
+- ESLint and Prettier
+- With `--database`: Drizzle ORM with Cloudflare D1
+- With `--auth`: Better Auth backed by D1
 
 ```
 my-app/
@@ -57,27 +52,23 @@ my-app/
 ## Working in the generated app
 
 ```bash
-npm run dev          # vite dev server
-npm run check        # svelte-check
-npm run lint         # prettier + eslint
-npm run preview      # build, then wrangler dev
+npm run dev                 # vite dev server
+npm run check               # svelte-check
+npm run lint                # prettier + eslint
+npm run preview             # build, then wrangler dev
+pnpm run db:gen             # requires database, generates migrations
+pnpm run db:migrate         # requires database, migrates locally
+pnpm run db:migrate:preview # requires database, migrates to cf preview environment
+pnpm run db:migrate:remote  # requires database, migrates to cf production environment
+pnpm run cf:gen             # generates cloudflare types
+pnpm run cf:deploy          # deploys to cloudflare
 ```
 
-With the database enabled, `db:gen` generates migrations (running `auth:gen`, the Better Auth schema generator, first if auth is on), and `db:migrate` applies them locally. `db:migrate:preview` and `db:migrate:remote` target Cloudflare.
-
-To deploy, create the database and give wrangler its id:
+If you selected database, you also need to create the database in Cloudflare:
 
 ```bash
 wrangler d1 create my-app    # add the printed database_id to wrangler.jsonc
-npm run db:migrate:remote
-npm run cf:deploy
 ```
-
-Skip the D1 steps if you scaffolded without a database; `cf:deploy` alone is enough.
-
-## How it works
-
-Instead of shelling out to `create-cloudflare@latest` and friends, this CLI calls the [Svelte CLI](https://github.com/sveltejs/cli)'s programmatic API directly: `create()` for the base project, `add()` for the tailwindcss, eslint, prettier, and Cloudflare adapter add-ons. shadcn-svelte runs from the generated app's own dependencies rather than a `@latest` download, and the remaining project files come from templates in this repo. This package pins its own dependencies to explicit ranges, so a release of the Svelte CLI can't break scaffolding overnight; the generated app's dependencies are installed at whatever their current versions are.
 
 ## Developing this repo
 
